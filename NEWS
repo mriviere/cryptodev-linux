@@ -1,3 +1,17 @@
+Version 0.2-mr1 (released 2014-01-23)
+
+* Verify transparent RSA signatures
+
+* Compile on kernel 3.9 and above
+
+* Compile with -g
+
+* Add some scripts to debug the NCR module
+
+* Add a script to ease the comparison between vanilla and NCR versions of
+  libtomcrypt and libtommath
+
+
 Version 0.2 (released 2012-09-03)
 
 * Transparent flag now allows for arbitrary hash sizes.

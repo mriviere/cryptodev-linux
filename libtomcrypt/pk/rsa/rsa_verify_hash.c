@@ -37,19 +37,21 @@ int rsa_verify_hash_ex(const unsigned char *sig, unsigned long siglen,
 		       const struct algo_properties_st *hash_algo,
 		       unsigned long saltlen, int *stat, rsa_key * key)
 {
-	unsigned long modulus_bitlen, modulus_bytelen, x;
-	int err;
-	unsigned char *tmpbuf;
 
-	LTC_ARGCHK(hash != NULL);
-	LTC_ARGCHK(sig != NULL);
-	LTC_ARGCHK(stat != NULL);
-	LTC_ARGCHK(key != NULL);
 
-	/* default to invalid */
-	*stat = 0;
+  unsigned long modulus_bitlen, modulus_bytelen, x;
+  int           err;
+  unsigned char *tmpbuf;
 
-	/* valid padding? */
+  LTC_ARGCHK(hash  != NULL);
+  LTC_ARGCHK(sig   != NULL);
+  LTC_ARGCHK(stat  != NULL);
+  LTC_ARGCHK(key   != NULL);
+
+  /* default to invalid */
+  *stat = 0;
+
+  /* valid padding? */
 
 	if ((padding != LTC_LTC_PKCS_1_V1_5) && (padding != LTC_LTC_PKCS_1_PSS)) {
 		return CRYPT_PK_INVALID_PADDING;
@@ -71,11 +73,11 @@ int rsa_verify_hash_ex(const unsigned char *sig, unsigned long siglen,
 		return CRYPT_INVALID_PACKET;
 	}
 
-	/* allocate temp buffer for decoded sig */
-	tmpbuf = XMALLOC(siglen);
-	if (tmpbuf == NULL) {
-		return CRYPT_MEM;
-	}
+  /* allocate temp buffer for decoded sig */
+  tmpbuf = XMALLOC(siglen);
+  if (tmpbuf == NULL) {
+     return CRYPT_MEM;
+  }
 
 	/* RSA decode it  */
 	x = siglen;
@@ -86,11 +88,11 @@ int rsa_verify_hash_ex(const unsigned char *sig, unsigned long siglen,
 		return err;
 	}
 
-	/* make sure the output is the right size */
-	if (x != siglen) {
-		XFREE(tmpbuf);
-		return CRYPT_INVALID_PACKET;
-	}
+  /* make sure the output is the right size */
+  if (x != siglen) {
+     XFREE(tmpbuf);
+     return CRYPT_INVALID_PACKET;
+  }
 
 	if (padding == LTC_LTC_PKCS_1_PSS) {
 		/* PSS decode and verify it */
@@ -111,14 +113,13 @@ int rsa_verify_hash_ex(const unsigned char *sig, unsigned long siglen,
 			goto bail_2;
 		}
 
-		/* allocate temp buffer for decoded hash */
-		outlen =
-		    ((modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0)) - 3;
-		out = XMALLOC(outlen);
-		if (out == NULL) {
-			err = CRYPT_MEM;
-			goto bail_2;
-		}
+    /* allocate temp buffer for decoded hash */
+    outlen = ((modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0)) - 3;
+    out    = XMALLOC(outlen);
+    if (out == NULL) {
+      err = CRYPT_MEM;
+      goto bail_2;
+    }
 
 		if ((err =
 		     pkcs_1_v1_5_decode(tmpbuf, x, LTC_LTC_PKCS_1_EMSA,
@@ -160,10 +161,99 @@ int rsa_verify_hash_ex(const unsigned char *sig, unsigned long siglen,
 			*stat = 1;
 		}
 #ifdef LTC_CLEAN_STACK
-		zeromem(out, outlen);
+    zeromem(out, outlen);
 #endif
-		XFREE(out);
+    XFREE(out);
+  }
+
+bail_2:
+#ifdef LTC_CLEAN_STACK
+  zeromem(tmpbuf, siglen);
+#endif
+  XFREE(tmpbuf);
+  return err;
+}
+
+/**
+  LTC_PKCS #1 v1.5 de-sign without padding
+  @param sig              The signature data
+  @param siglen           The length of the signature data (octets)
+  @param hash             The hash of the message that was signed
+  @param hashlen          The length of the hash of the message that was signed (octets)
+  @param stat             [out] The result of the signature comparison, 1==valid, 0==invalid
+  @param key              The public RSA key corresponding to the key that performed the signature
+  @return CRYPT_OK on success (even if the signature is invalid)
+*/
+int rsa_verify_raw(const unsigned char *sig, unsigned long siglen,
+		       const unsigned char *hash, unsigned long hashlen,
+		       int *stat, rsa_key * key)
+{
+	unsigned long modulus_bitlen, modulus_bytelen, x, outlen;
+	int           err, decoded;
+	unsigned char *tmpbuf, *out;
+
+	LTC_ARGCHK(hash  != NULL);
+	LTC_ARGCHK(sig   != NULL);
+	LTC_ARGCHK(stat  != NULL);
+	LTC_ARGCHK(key   != NULL);
+
+	/* default to invalid */
+	*stat = 0;
+
+	/* get modulus len in bits */
+	modulus_bitlen = mp_count_bits((&key->N));
+
+	/* outlen must be at least the size of the modulus */
+	modulus_bytelen = mp_unsigned_bin_size((&key->N));
+	if (modulus_bytelen != siglen) {
+		return CRYPT_INVALID_PACKET;
 	}
+
+	/* allocate temp buffer for decoded sig */
+	tmpbuf = XMALLOC(siglen);
+	if (tmpbuf == NULL) {
+		return CRYPT_MEM;
+	}
+
+	/* RSA decode it  */
+	x = siglen;
+	if ((err =
+	     rsa_exptmod(sig, siglen, tmpbuf, &x, PK_PUBLIC,
+			 key)) != CRYPT_OK) {
+		XFREE(tmpbuf);
+		return err;
+	}
+
+	/* make sure the output is the right size */
+	if (x != siglen) {
+		XFREE(tmpbuf);
+		return CRYPT_INVALID_PACKET;
+	}
+
+	/* allocate temp buffer for decoded hash */
+	outlen = ((modulus_bitlen >> 3) + (modulus_bitlen & 7 ? 1 : 0)) - 3;
+	out    = XMALLOC(outlen);
+	if (out == NULL) {
+		err = CRYPT_MEM;
+		goto bail_2;
+	}
+
+	if ((err = pkcs_1_v1_5_decode(tmpbuf, x, LTC_LTC_PKCS_1_EMSA,
+					modulus_bitlen, out, &outlen,
+					&decoded)) != CRYPT_OK) {
+		XFREE(out);
+		goto bail_2;
+	}
+
+	/* test OID */
+	if ((outlen == hashlen) &&
+			(XMEMCMP(out, hash, hashlen) == 0)) {
+		*stat = 1;
+	}
+#ifdef LTC_CLEAN_STACK
+	zeromem(out, outlen);
+#endif
+	XFREE(out);
 
 bail_2:
 #ifdef LTC_CLEAN_STACK
@@ -175,6 +265,6 @@ bail_2:
 
 #endif /* LTC_MRSA */
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/rsa/rsa_verify_hash.c,v $ */
-/* $Revision: 1.13 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* $Source$ */
+/* $Revision$ */
+/* $Date$ */

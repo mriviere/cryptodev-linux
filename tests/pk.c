@@ -916,7 +916,7 @@ static int rsa_key_sign_verify_transparent(int cfd, ncr_key_t privkey,
 	ncr_put_u32(&nla, NCR_ATTR_KEY, privkey);
 	ncr_put_u32(&nla, NCR_ATTR_RSA_ENCODING_METHOD,
 		    (pss != 0) ? RSA_PKCS1_PSS : RSA_PKCS1_V1_5);
-	ncr_put_u32(&nla, NCR_ATTR_SIGNATURE_HASH_ALGORITHM, SIGNATURE_HASH);
+	//ncr_put_u32(&nla, NCR_ATTR_SIGNATURE_HASH_ALGORITHM, SIGNATURE_HASH);
 	ncr_put_session_input_data(&nla, NCR_ATTR_UPDATE_INPUT_DATA, data,
 				   SIGNATURE_HASH_SIZE);
 	ncr_put_session_output_buffer(&nla, NCR_ATTR_FINAL_OUTPUT_BUFFER, sig,
@@ -939,7 +939,7 @@ static int rsa_key_sign_verify_transparent(int cfd, ncr_key_t privkey,
 	ncr_put_u32(&nla, NCR_ATTR_KEY, pubkey);
 	ncr_put_u32(&nla, NCR_ATTR_RSA_ENCODING_METHOD,
 		    (pss != 0) ? RSA_PKCS1_PSS : RSA_PKCS1_V1_5);
-	ncr_put_u32(&nla, NCR_ATTR_SIGNATURE_HASH_ALGORITHM, SIGNATURE_HASH);
+	//ncr_put_u32(&nla, NCR_ATTR_SIGNATURE_HASH_ALGORITHM, SIGNATURE_HASH);
 	ncr_put_session_input_data(&nla, NCR_ATTR_UPDATE_INPUT_DATA, data,
 				   SIGNATURE_HASH_SIZE);
 	ncr_put_session_input_data(&nla, NCR_ATTR_FINAL_INPUT_DATA, sig,

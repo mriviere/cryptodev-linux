@@ -105,7 +105,9 @@ static int test_ncr_rsa(int cfd)
 	ncr_key_t pubkey, privkey;
 	uint8_t data[4*1024];
 	int data_size;
+#ifdef STORE_KEY
 	FILE* fp;
+#endif
 
 	fprintf(stdout, "Tests on RSA key generation:");
 	fflush(stdout);

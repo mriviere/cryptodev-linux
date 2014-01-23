@@ -4,12 +4,13 @@
 #include <linux/types.h>
 #ifndef __KERNEL__
 #define __user
-#include <netlink/netlink.h>
+//#include <netlink/netlink.h>
 #include <string.h>
 #include <stdint.h>
 #else
-#include <linux/netlink.h>
+//#include <linux/netlink.h>
 #endif
+#include <linux/netlink.h>
 
 /* algorithms to be used by NCR_ATTR_ALGORITHM
  */

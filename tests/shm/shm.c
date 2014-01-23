@@ -36,7 +36,7 @@ void child(pid_t parent, void *mem)
 	}
 }
 
-static int must_finish = 0;
+static volatile int must_finish = 0;
 
 static void alarm_handler(int signo)
 {

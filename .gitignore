@@ -11,7 +11,14 @@ examples/ncr
 examples/pk
 examples/speed
 releases
-scripts
 userspace/ncr-setkey
 version.h
 tags
+tests/ncr
+tests/pk
+tests/speed
+tests/uspeed
+*.orig
+*.orig.done
+examples/aes
+examples/rsa

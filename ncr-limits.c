@@ -94,12 +94,19 @@ void ncr_limits_deinit(void)
 {
 	struct limit_process_item_st *pitem;
 	struct limit_user_item_st *uitem;
-	struct hlist_node *pos, *tmp;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+	struct hlist_node *pos;
+#endif
+	struct hlist_node *tmp;
 	size_t i;
 
 	mutex_lock(&user_limit_mutex);
 	for (i = 0; i < USER_LIMIT_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(uitem, pos, tmp, &user_limit_table[i],
+		hlist_for_each_entry_safe(uitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+					  pos,
+#endif
+					  tmp, &user_limit_table[i],
 					  hlist) {
 			hlist_del(&uitem->hlist);
 			kfree(uitem);
@@ -109,7 +116,11 @@ void ncr_limits_deinit(void)
 
 	mutex_lock(&process_limit_mutex);
 	for (i = 0; i < PROCESS_LIMIT_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(pitem, pos, tmp,
+		hlist_for_each_entry_safe(pitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+					  pos,
+#endif
+					  tmp,
 					  &process_limit_table[i], hlist) {
 			hlist_del(&pitem->hlist);
 			kfree(pitem);
@@ -124,14 +135,20 @@ int ncr_limits_add_and_check(uid_t uid, pid_t pid, limits_type_t type)
 	struct limit_process_item_st *pitem;
 	struct limit_user_item_st *uitem;
 	struct hlist_head *user_head, *process_head;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
 	struct hlist_node *pos;
+#endif
 	int add = 1;
 	int ret;
 	BUG_ON(type >= NUM_LIMIT_TYPES);
 
 	user_head = user_limit_hash(uid);
 	mutex_lock(&user_limit_mutex);
-	hlist_for_each_entry(uitem, pos, user_head, hlist) {
+	hlist_for_each_entry(uitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+			     pos,
+#endif
+			     user_head, hlist) {
 		if (uitem->uid == uid) {
 			add = 0;
 
@@ -167,7 +184,11 @@ int ncr_limits_add_and_check(uid_t uid, pid_t pid, limits_type_t type)
 	/* check process limits */
 	process_head = process_limit_hash(uid);
 	mutex_lock(&process_limit_mutex);
-	hlist_for_each_entry(pitem, pos, process_head, hlist) {
+	hlist_for_each_entry(pitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+			     pos,
+#endif
+			     process_head, hlist) {
 		if (pitem->pid == pid) {
 			add = 0;
 			if (atomic_add_unless
@@ -206,7 +227,11 @@ int ncr_limits_add_and_check(uid_t uid, pid_t pid, limits_type_t type)
 
 restore_user:
 	mutex_lock(&user_limit_mutex);
-	hlist_for_each_entry(uitem, pos, user_head, hlist) {
+	hlist_for_each_entry(uitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+			     pos,
+#endif 
+			     user_head, hlist) {
 		if (uitem->uid == uid) {
 			atomic_dec(&uitem->cnt[type]);
 			break;
@@ -221,12 +246,18 @@ void ncr_limits_remove(uid_t uid, pid_t pid, limits_type_t type)
 	struct limit_process_item_st *pitem;
 	struct limit_user_item_st *uitem;
 	struct hlist_head *hhead;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
 	struct hlist_node *pos;
+#endif
 
 	BUG_ON(type >= NUM_LIMIT_TYPES);
 	hhead = user_limit_hash(uid);
 	mutex_lock(&user_limit_mutex);
-	hlist_for_each_entry(uitem, pos, hhead, hlist) {
+	hlist_for_each_entry(uitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+		pos,
+#endif
+		hhead, hlist) {
 		if (uitem->uid == uid) {
 			atomic_dec(&uitem->cnt[type]);
 			break;
@@ -237,7 +268,11 @@ void ncr_limits_remove(uid_t uid, pid_t pid, limits_type_t type)
 	/* check process limits */
 	hhead = process_limit_hash(uid);
 	mutex_lock(&process_limit_mutex);
-	hlist_for_each_entry(pitem, pos, hhead, hlist) {
+	hlist_for_each_entry(pitem,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
+		pos,
+#endif
+		hhead, hlist) {
 		if (pitem->pid == pid) {
 			atomic_dec(&pitem->cnt[type]);
 			break;

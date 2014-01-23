@@ -613,13 +613,16 @@ int ncr_pk_cipher_verify(const struct ncr_pk_ctx *ctx, const void *sig,
 	switch (ctx->algorithm->algo) {
 	case NCR_ALG_RSA:
 		if (ctx->sign_hash == NULL) {
-			err();
-			return -EINVAL;
+			cret = rsa_verify_raw(sig, sig_size, hash,
+					      hash_size,
+					      &stat, &ctx->key->key.pk.rsa);
 		}
-		cret = rsa_verify_hash_ex(sig, sig_size, hash,
-					  hash_size, ctx->type,
-					  ctx->sign_hash, ctx->salt_len,
-					  &stat, &ctx->key->key.pk.rsa);
+		else {
+			cret = rsa_verify_hash_ex(sig, sig_size, hash,
+						  hash_size, ctx->type,
+						  ctx->sign_hash, ctx->salt_len,
+						  &stat, &ctx->key->key.pk.rsa);
+		}
 		if (cret != CRYPT_OK) {
 			err();
 			ret = _ncr_tomerr(cret);
