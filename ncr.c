@@ -240,7 +240,6 @@ long ncr_ioctl(struct ncr_lists *lst, unsigned int cmd, unsigned long arg_)
 				err();
 				return ret;
 			}
-			dprintk(0, KERN_DEBUG, "DEINIT\n");
 			return ncr_key_deinit(lst, key);
 		}
 	case NCRIO_KEY_LIST:{
