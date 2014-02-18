@@ -1,4 +1,4 @@
-Version 0.2-mr1 (released 2014-02-18)
+Version 0.2-mr2 (released 2014-02-18)
 
 * Verify transparent RSA signatures
 
@@ -18,7 +18,7 @@ Version 0.2-mr1 (released 2014-02-18)
 * Add a 'setkey' module to demonstrate how the provisioning can be done from
   kernel space.
   This module is provisioning the master key with random bytes, a AES key with
-  random bytes and a RSA private key.
+  random bytes and a hard coded RSA private key.
   TODO: For convenience, the module expects the RSA private key to be provided by
   a user space program that writes to /sys/kernel/ncr-setkey/rsa_key.
 
