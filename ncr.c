@@ -62,6 +62,11 @@ void *ncr_init_lists(void)
 
 	return lst;
 }
+EXPORT_SYMBOL(ncr_init_lists);
+
+#ifdef KEY_PERSISTENCE
+extern void *ncr;
+#endif
 
 void ncr_deinit_lists(struct ncr_lists *lst)
 {
@@ -71,6 +76,7 @@ void ncr_deinit_lists(struct ncr_lists *lst)
 		kfree(lst);
 	}
 }
+EXPORT_SYMBOL(ncr_deinit_lists);
 
 void ncr_master_key_reset(void)
 {
@@ -80,6 +86,12 @@ void ncr_master_key_reset(void)
 static int ncr_master_key_set(const struct ncr_master_key_set *st,
 			      struct nlattr *tb[])
 {
+#ifdef ENFORCE_SECURITY
+
+	return -EPERM;
+
+#else
+
 	if (!capable(CAP_SYS_ADMIN)) {
 		err();
 		return -EPERM;
@@ -92,7 +104,7 @@ static int ncr_master_key_set(const struct ncr_master_key_set *st,
 
 	if (st->key_size != 16 && st->key_size != 24 && st->key_size != 32) {
 		dprintk(0, KERN_DEBUG,
-			"Master key size must be 16,24 or 32.\n");
+			"Master key size must be 16, 24 or 32 bytes.\n");
 		return -EINVAL;
 	}
 
@@ -113,7 +125,38 @@ static int ncr_master_key_set(const struct ncr_master_key_set *st,
 	master_key.key.secret.size = st->key_size;
 
 	return 0;
+#endif
 }
+
+int ncr_master_key_set_internal(unsigned char * buffer, unsigned int buffer_len)
+{
+	if (unlikely(buffer_len > sizeof(master_key.key.secret.data)))
+	{
+		err();
+		return -EINVAL;
+	}
+
+	if (unlikely(buffer_len != 16 && buffer_len != 24 && buffer_len != 32))
+	{
+		dprintk(0, KERN_DEBUG,
+			"Master key size must be 16,24 or 32.\n");
+		return -EINVAL;
+	}
+
+	if (unlikely(master_key.type != NCR_KEY_TYPE_INVALID))
+	{
+		dprintk(0, KERN_DEBUG,
+			"Master key was previously initialized.\n");
+	}
+
+	memcpy(master_key.key.secret.data, buffer, buffer_len);
+
+	master_key.type = NCR_KEY_TYPE_SECRET;
+	master_key.key.secret.size = buffer_len;
+
+	return 0;
+}
+EXPORT_SYMBOL(ncr_master_key_set_internal);
 
 long ncr_ioctl(struct ncr_lists *lst, unsigned int cmd, unsigned long arg_)
 {
@@ -143,6 +186,22 @@ long ncr_ioctl(struct ncr_lists *lst, unsigned int cmd, unsigned long arg_)
 #define CASE_NO_OUTPUT_COMPAT(LABEL, STRUCT, FUNCTION)			\
 		CASE_(LABEL, STRUCT, FUNCTION, (lst, &data, tb, 0))
 
+	case NCRIO_LOG:{
+			ncr_log log ;
+			char buffer[200];
+			if (unlikely(copy_from_user(&log, arg,
+							sizeof(ncr_log))))
+				return -1;
+			if (log.len < 200)
+			{
+				if (unlikely(copy_from_user(buffer, log.message,
+								log.len)))
+					return -1;
+				buffer[log.len] = '0';
+				//LOG(buffer);
+			}
+			return 0;
+		}
 	case NCRIO_KEY_INIT:
 		return ncr_key_init(lst);
 	CASE_NO_OUTPUT(NCRIO_KEY_GENERATE, ncr_key_generate,
@@ -181,7 +240,34 @@ long ncr_ioctl(struct ncr_lists *lst, unsigned int cmd, unsigned long arg_)
 				err();
 				return ret;
 			}
+			dprintk(0, KERN_DEBUG, "DEINIT\n");
 			return ncr_key_deinit(lst, key);
+		}
+	case NCRIO_KEY_LIST:{
+			ncr_key_t *keys;
+
+			keys = kmalloc(MAX_KEY_LIST * sizeof(ncr_key_t),
+					GFP_KERNEL);
+			if (unlikely(!keys)) {
+				err();
+				return -ENOMEM;
+			}
+
+			ret = ncr_key_list(lst, MAX_KEY_LIST, keys);
+			if (unlikely(ret < 0)) {
+				err();
+				return ret;
+			}
+
+			if (unlikely(copy_to_user(arg, keys, ret *
+							sizeof(ncr_key_t))))
+			{
+				err();
+				ret = -EFAULT;
+			}
+			kfree(keys);
+			dprintk(0, KERN_DEBUG, "LIST\n");
+			return ret;
 		}
 	CASE_NO_OUTPUT(NCRIO_KEY_WRAP, ncr_key_wrap, ncr_key_wrap);
 	CASE_NO_OUTPUT(NCRIO_KEY_UNWRAP, ncr_key_unwrap,
@@ -350,6 +436,7 @@ ncr_compat_ioctl(struct ncr_lists *lst, unsigned int cmd, unsigned long arg_)
 		BUG();
 
 	switch (cmd) {
+	case NCRIO_LOG:
 	case NCRIO_KEY_INIT:
 	case NCRIO_KEY_GENERATE:
 	case NCRIO_KEY_GENERATE_PAIR:

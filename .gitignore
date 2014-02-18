@@ -12,6 +12,8 @@ examples/pk
 examples/speed
 releases
 userspace/ncr-setkey
+userspace/lskeys
+userspace/rmkey
 version.h
 tags
 tests/ncr
@@ -22,3 +24,4 @@ tests/uspeed
 *.orig.done
 examples/aes
 examples/rsa
+cscope.out

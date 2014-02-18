@@ -49,11 +49,19 @@ MODULE_AUTHOR("Nikos Mavrogiannopoulos <nmav@gnutls.org>");
 MODULE_DESCRIPTION("NCR driver");
 MODULE_LICENSE("GPL");
 
+#ifdef KEY_PERSISTENCE
+void *ncr;
+void *ncr_get_lists(void) { return ncr; }
+EXPORT_SYMBOL(ncr_get_lists);
+#endif
+
 /* ====== Module parameters ====== */
 
 int cryptodev_verbosity = 0;
+#ifndef ENFORCE_SECURITY
 module_param(cryptodev_verbosity, int, 0644);
 MODULE_PARM_DESC(cryptodev_verbosity, "0: normal, 1: verbose, 2: debug");
+#endif
 
 /* ====== CryptoAPI ====== */
 
@@ -103,6 +111,7 @@ int __get_userbuf(uint8_t __user * addr, uint32_t len, int write,
 
 static int cryptodev_open(struct inode *inode, struct file *filp)
 {
+#ifndef KEY_PERSISTENCE
 	void *ncr;
 
 	ncr = ncr_init_lists();
@@ -111,17 +120,22 @@ static int cryptodev_open(struct inode *inode, struct file *filp)
 	}
 
 	filp->private_data = ncr;
+#endif
 	return 0;
 }
 
 static int cryptodev_release(struct inode *inode, struct file *filp)
 {
+#ifndef KEY_PERSISTENCE
 	void *ncr = filp->private_data;
 
-	if (ncr) {
+	if (likely(ncr)) {
 		ncr_deinit_lists(ncr);
 		filp->private_data = NULL;
 	}
+	else
+		BUG();
+#endif
 
 	return 0;
 }
@@ -129,7 +143,9 @@ static int cryptodev_release(struct inode *inode, struct file *filp)
 static long
 cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+#ifndef KEY_PERSISTENCE
 	void *ncr = filp->private_data;
+#endif
 
 	if (unlikely(!ncr))
 		BUG();
@@ -143,7 +159,9 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static long
 cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+#ifndef KEY_PERSISTENCE
 	void *ncr = file->private_data;
+#endif
 
 	if (unlikely(!ncr))
 		BUG();
@@ -183,6 +201,16 @@ static int __init cryptodev_register(void)
 		return rc;
 	}
 
+#ifdef KEY_PERSISTENCE
+	ncr = ncr_init_lists();
+	if (unlikely(ncr == NULL)) {
+		misc_deregister(&cryptodev);
+		ncr_limits_deinit();
+		printk(KERN_ERR PFX "registration of /dev/ncr failed\n");
+		return -ENOMEM;
+	}
+#endif
+
 	return 0;
 }
 
@@ -190,6 +218,14 @@ static void __exit cryptodev_deregister(void)
 {
 	misc_deregister(&cryptodev);
 	ncr_limits_deinit();
+
+#ifdef KEY_PERSISTENCE
+	if (likely(ncr)) {
+		ncr_deinit_lists(ncr);
+	}
+	else
+		BUG();
+#endif
 }
 
 /* ====== Module init/exit ====== */

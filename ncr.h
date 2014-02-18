@@ -4,11 +4,8 @@
 #include <linux/types.h>
 #ifndef __KERNEL__
 #define __user
-//#include <netlink/netlink.h>
 #include <string.h>
 #include <stdint.h>
-#else
-//#include <linux/netlink.h>
 #endif
 #include <linux/netlink.h>
 
@@ -181,6 +178,9 @@ struct ncr_key_derive {
 };
 
 #define MAX_KEY_ID_SIZE 20
+#ifdef KEY_PERSISTENCE
+#define MAX_KEY_LIST (4096)
+#endif
 
 struct ncr_key_get_info {
 	__u32 input_size, output_size;
@@ -219,6 +219,8 @@ struct ncr_key_export {
 #define NCRIO_KEY_IMPORT _IOWR('c', 0xC6, struct ncr_key_import)
 
 #define NCRIO_KEY_DEINIT _IOW('c', 0xC7, ncr_key_t)
+/* return the descriptors of the keys stored in the current NCR session */
+#define NCRIO_KEY_LIST _IOWR('c', 0xC8, ncr_key_t *)
 
 /* Key wrap ioctls
  */
@@ -328,6 +330,14 @@ struct ncr_session_once {
 
 /* everything in one call */
 #define NCRIO_SESSION_ONCE _IOWR('c', 0xD3, struct ncr_session_once)
+
+typedef struct _ncr_log {
+	char* message;
+	int len;
+	__NL_ATTRIBUTES;
+} ncr_log;
+
+#define NCRIO_LOG _IOW('c', 0xE0,  struct _ncr_log)
 
 /* Several utility macros and functions
  */

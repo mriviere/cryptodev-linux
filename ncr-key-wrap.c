@@ -40,7 +40,7 @@
  * has no issues, it might be possible to relax the requirement for
  * privileged key wrapping.
  */
-#define KEY_WRAP_IS_PRIVILEGED
+//#define KEY_WRAP_IS_PRIVILEGED
 
 typedef uint8_t val64_t[8];
 
@@ -754,6 +754,12 @@ int ncr_key_storage_wrap(struct ncr_lists *lst,
 	size_t sdata_size = 0;
 	int ret;
 
+#ifdef ENFORCE_SECURITY
+
+	return -EPERM;
+
+#else
+
 	if (master_key.type != NCR_KEY_TYPE_SECRET) {
 		err();
 		return -ENOKEY;
@@ -809,6 +815,8 @@ fail:
 		kfree(sdata);
 
 	return ret;
+
+#endif
 }
 
 int ncr_key_storage_unwrap(struct ncr_lists *lst,
@@ -880,6 +888,93 @@ fail:
 
 	return ret;
 }
+
+/*int wrap_with_master_key(int type, unsigned char * buf, unsigned int buf_len,
+			  char * key_id, int key_id_size, int flags,
+			  unsigned char ** out_buf, unsigned int*  out_buf_len)
+{
+	int ret = 0;
+
+	char * data;
+	size_t data_size = 4000;
+	uint8_t *sdata = NULL;
+	size_t sdata_size = 0;
+	struct key_item_st key;
+
+	//printk("wrap_with_master_key begin\n");
+
+	data = kmalloc(data_size, GFP_KERNEL);
+	if (data == NULL) {
+		err();
+		ret = -ENOMEM;
+	}
+
+	if(buf_len > NCR_CIPHER_MAX_KEY_LEN)
+	{
+	    err();
+		return -EFAULT;
+	}
+
+	if(key_id_size > MAX_KEY_ID_SIZE)
+	{
+	    err();
+		return -EFAULT;
+	}
+
+	key.flags = flags;
+	memcpy(key.key_id,key_id,key_id_size);
+	key.key_id_size = key_id_size;
+	key.type = type;
+	if(type == NCR_KEY_TYPE_SECRET)
+	{
+		key.algorithm = _ncr_algo_to_properties(NCR_ALG_AES_ECB);
+		memcpy(key.key.secret.data,buf,buf_len);
+		key.key.secret.size = buf_len;
+	}
+	else if(type == NCR_KEY_TYPE_PRIVATE)
+	{
+		key.algorithm = _ncr_algo_to_properties(NCR_ALG_RSA);
+		rsa_import(buf,buf_len, &key.key.pk.rsa);
+	}
+	else
+	{
+		err();
+		return -EFAULT;
+	}
+
+	ret = key_to_storage_data(&sdata, &sdata_size, &key);
+	if (ret < 0) {
+		err();
+		return ret;
+	}
+
+	ret = _wrap_aes_rfc5649(sdata, sdata_size, &master_key, data,
+				&data_size, NULL, 0);
+	if(ret == 0)
+	{
+		//printk("wrap_with_master_key  sucess, size:%d\n",data_size);
+		*out_buf = kmalloc(data_size, GFP_KERNEL);
+		if (*out_buf == NULL) {
+			err();
+			kfree(data);
+			printk("wrap_with_master_key but malloc failed for: "
+			       "%u size\n", (unsigned int)data_size);
+			ret = -ENOMEM;
+		}
+		else
+		{
+			memcpy(	*out_buf,data,data_size);
+			kfree(data);
+			*out_buf_len = data_size;
+		}
+	}
+	else
+		printk("wrap_with_master_key error\n");
+
+	//printk("wrap_with_master_key end\n");
+	return ret;
+}
+EXPORT_SYMBOL(wrap_with_master_key);*/
 
 #ifdef CONFIG_CRYPTO_USERSPACE_ASYMMETRIC
 

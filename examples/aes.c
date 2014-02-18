@@ -75,6 +75,11 @@ static int test_ncr_aes(int cfd)
 		return 1;
 	}
 
+        if (ioctl(cfd, NCRIO_KEY_DEINIT, &key)) {
+		perror("ioctl(NCRIO_KEY_DEINIT)");
+		return 1;
+	}
+
 	/* now verify that the ciphertext is as expected */
 
 	if (data_size != 16

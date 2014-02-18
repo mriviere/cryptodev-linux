@@ -197,16 +197,44 @@ err_limits:
 	ncr_limits_remove(current_euid(), task_pid_nr(current), LIMIT_TYPE_KEY);
 	return ret;
 }
+EXPORT_SYMBOL(ncr_key_init);
+
+int ncr_key_list(struct ncr_lists *lst, int nb_keys_max, ncr_key_t *keys)
+{
+	int nb_keys = 0;
+	ncr_key_t desc = 0;
+	struct key_item_st *item;
+
+#ifdef ENFORCE_SECURITY
+	return -EPERM;
+#else
+	mutex_lock(&lst->key_idr_mutex);
+	for (nb_keys = 0; (nb_keys < nb_keys_max) &&
+			((item = idr_get_next(&lst->key_idr, &desc)) != NULL);
+			nb_keys++, desc++)
+		keys[nb_keys] = item->desc;
+		//memcpy(&keys[nb_keys], &item->desc, sizeof(ncr_key_t));
+	mutex_unlock(&lst->key_idr_mutex);
+	return nb_keys;
+#endif
+}
 
 int ncr_key_deinit(struct ncr_lists *lst, ncr_key_t desc)
 {
 	_ncr_key_remove(lst, desc);
 	return 0;
 }
+EXPORT_SYMBOL(ncr_key_deinit);
 
 int ncr_key_export(struct ncr_lists *lst, const struct ncr_key_export *data,
 		   struct nlattr *tb[])
 {
+#ifdef ENFORCE_SECURITY
+
+	return -EINVAL;
+
+#else
+
 	struct key_item_st *item = NULL;
 	void *tmp = NULL;
 	uint32_t tmp_size;
@@ -289,6 +317,8 @@ fail:
 		_ncr_key_item_put(item);
 	return ret;
 
+#endif
+
 }
 
 int ncr_key_update_flags(struct key_item_st *item, const struct nlattr *nla)
@@ -305,9 +335,71 @@ int ncr_key_update_flags(struct key_item_st *item, const struct nlattr *nla)
 	return 0;
 }
 
+int ncr_key_import_from_kernel(struct ncr_lists *lst,
+		const struct key_item_st *item_import)
+{
+	struct key_item_st *item = NULL;
+	int ret;
+
+	ret = ncr_key_item_get_write(&item, lst, item_import->desc);
+	if (unlikely(ret < 0)) {
+		err();
+		return ret;
+	}
+
+	ncr_key_clear(item);
+
+	memcpy(item, item_import, (size_t)&item->refcnt - (size_t)item);
+	item->desc = item_import->desc;
+
+	switch (item->type) {
+	case NCR_KEY_TYPE_SECRET:
+		if (unlikely(item_import->key.secret.size >
+					NCR_CIPHER_MAX_KEY_LEN)) {
+			err();
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		memcpy(item->key.secret.data, item_import->key.secret.data,
+				item_import->key.secret.size);
+		item->key.secret.size = item_import->key.secret.size;
+		break;
+	case NCR_KEY_TYPE_PRIVATE:
+	case NCR_KEY_TYPE_PUBLIC:
+		ret = ncr_pk_unpack(item, item_import->key.secret.data,
+				item_import->key.secret.size);
+		if (unlikely(ret < 0)) {
+			err();
+			goto fail;
+		}
+		break;
+	default:
+		err();
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	atomic_dec(&item->writer);
+	ret = 0;
+
+fail:
+	if (item)
+		_ncr_key_item_put(item);
+
+	return ret;
+}
+EXPORT_SYMBOL(ncr_key_import_from_kernel);
+
 int ncr_key_import(struct ncr_lists *lst, const struct ncr_key_import *data,
 		   struct nlattr *tb[])
 {
+#ifdef ENFORCE_SECURITY
+
+	return -EINVAL;
+
+#else
+
 	const struct nlattr *nla;
 	struct key_item_st *item = NULL;
 	int ret;
@@ -402,6 +494,8 @@ fail:
 	kfree(tmp);
 
 	return ret;
+
+#endif
 }
 
 void ncr_key_clear(struct key_item_st *item)
@@ -645,8 +739,16 @@ int ncr_key_get_info(struct ncr_lists *lst, struct ncr_out *out,
 			break;
 		case NCR_ATTR_ALGORITHM:
 			ret = ncr_out_put_u32(out, *attr,
-						 item->algorithm->algo);
+					(item->algorithm == NULL)
+					? NCR_ALG_NONE
+					: item->algorithm->algo);
 			break;
+#ifdef KEY_PERSISTENCE
+		case NCR_ATTR_KEY_ID:
+			ret = ncr_out_put(out, *attr, item->key_id_size,
+					item->key_id);
+			break;
+#endif
 		default:
 			break;	/* Silently ignore */
 		}

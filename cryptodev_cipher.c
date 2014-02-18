@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <linux/uaccess.h>
+#include <linux/version.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include "cryptodev_int.h"
@@ -304,17 +305,26 @@ int cryptodev_hash_clone(struct hash_data *hdata, struct hash_data *old_data,
 	if (unlikely(ret != 0))
 		return ret;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)
+	state = kmalloc(crypto_ahash_digestsize(hdata->async.s), GFP_KERNEL);
+#else
 	state = kmalloc(crypto_ahash_statesize(hdata->async.s), GFP_KERNEL);
+#endif
 	if (unlikely(state == NULL)) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)
+	crypto_ahash_export(old_data->async.request, state);
+#else
 	ret = crypto_ahash_export(old_data->async.request, state);
 	if (unlikely(ret != 0)) {
 		dprintk(0, KERN_ERR, "error exporting hash state\n");
 		goto err;
 	}
+#endif
+
 	ret = crypto_ahash_import(hdata->async.request, state);
 	if (unlikely(ret != 0)) {
 		dprintk(0, KERN_ERR, "error in crypto_hash_init()\n");
@@ -354,7 +364,6 @@ int cryptodev_hash_reset(struct hash_data *hdata)
 	}
 
 	return 0;
-
 }
 
 ssize_t cryptodev_hash_update(struct hash_data * hdata, struct scatterlist * sg,

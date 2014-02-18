@@ -1,12 +1,12 @@
 KERNEL_DIR = /lib/modules/$(shell uname -r)/build
-VERSION = 0.2
+VERSION = 0.2-mr1
 CONFIG_CRYPTO_USERSPACE_ASYMMETRIC=y
 
 ifeq ($(CONFIG_CRYPTO_USERSPACE_ASYMMETRIC),y)
 EXTRA_CFLAGS += -DCONFIG_CRYPTO_USERSPACE_ASYMMETRIC
 endif
 
-EXTRA_CFLAGS += -g -I$(SUBDIRS)/libtommath -I$(SUBDIRS)/libtomcrypt/headers -I$(SUBDIRS)/ -DLTC_SOURCE -Wall
+EXTRA_CFLAGS += -g -DKEY_PERSISTENCE -I$(SUBDIRS)/libtommath -I$(SUBDIRS)/libtomcrypt/headers -I$(SUBDIRS)/ -DLTC_SOURCE -Wall
 
 TOMMATH_OBJECTS = libtommath/bncore.o libtommath/bn_mp_init.o libtommath/bn_mp_clear.o libtommath/bn_mp_exch.o libtommath/bn_mp_grow.o libtommath/bn_mp_shrink.o \
 	libtommath/bn_mp_clamp.o libtommath/bn_mp_zero.o  libtommath/bn_mp_set.o libtommath/bn_mp_set_int.o libtommath/bn_mp_init_size.o libtommath/bn_mp_copy.o \
@@ -75,10 +75,12 @@ ncrmod-objs = cryptodev_main.o cryptodev_cipher.o ncr.o \
 	ncr-key-storage.o utils.o ncr-key-wrap.o \
 	ncr-dh.o ncr-pk.o
 
-obj-m += ncrmod.o
+obj-m += ncrmod.o kernelspace/setkey.o
 
 ncrmod-$(CONFIG_CRYPTO_USERSPACE_ASYMMETRIC) += $(TOMMATH_OBJECTS) \
 	$(TOMCRYPT_OBJECTS)
+
+setkey-y = kernelspace/setkey.o
 
 build:
 	@$(MAKE) version.h

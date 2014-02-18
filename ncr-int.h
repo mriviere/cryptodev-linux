@@ -112,6 +112,7 @@ int ncr_key_generate(struct ncr_lists *lst, const struct ncr_key_generate *gen,
 		     struct nlattr *tb[]);
 int ncr_key_get_info(struct ncr_lists *lst, struct ncr_out *out,
 		     const struct ncr_key_get_info *info, struct nlattr *tb[]);
+int ncr_key_list(struct ncr_lists *lst, int nb_keys_max, ncr_key_t *keys);
 
 #ifdef CONFIG_CRYPTO_USERSPACE_ASYMMETRIC
 int ncr_key_generate_pair(struct ncr_lists *lst,

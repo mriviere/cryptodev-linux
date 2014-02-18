@@ -432,6 +432,7 @@ const struct algo_properties_st *_ncr_algo_to_properties(ncr_algorithm_t algo)
 
 	return NULL;
 }
+EXPORT_SYMBOL(_ncr_algo_to_properties);
 
 static void print_oid(const oid_st * oid)
 {
@@ -482,7 +483,7 @@ const struct algo_properties_st *_ncr_nla_to_properties(const struct nlattr
 
 	/* nla_len() >= 1 ensured by validate_nla() case NLA_NUL_STRING */
 	algo = nla_get_u32(nla);
-	
+
 	return _ncr_algo_to_properties(algo);
 }
 

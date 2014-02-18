@@ -23,12 +23,17 @@
 int mp_prime_next_prime(mp_int * a, int t, int bbs_style)
 {
 	int err, res, x, y;
-	mp_digit res_tab[PRIME_SIZE], step, kstep;
+	mp_digit *res_tab, step, kstep;
 	mp_int b;
 
 	/* ensure t is valid */
 	if (t <= 0 || t > PRIME_SIZE) {
 		return MP_VAL;
+	}
+
+	res_tab = XMALLOC(sizeof(mp_digit) * PRIME_SIZE);
+	if (res_tab == NULL) {
+		return MP_MEM;
 	}
 
 	/* force positive */
